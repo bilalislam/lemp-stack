@@ -6,9 +6,32 @@
     name: nginx
     state: latest
 
-- name: Instal PHP-FPM
+- name: Install Php libaries.
   apt:
-    name: ['php','php-fpm','php-common','php-cli','php-curl']
+    name: "{{ item }}"
+  with_items: "{{ php_extensions }}"
+
+- name: Ensure pecl is installed (if configured).
+  package:
+    name: "php-pear"
+    state: present
+
+- name: Install PECL libaries.
+  shell: "yes '' | {{ php_pecl_install_command }} {{ item }}"
+  register: pecl_result
+  changed_when: pecl_result is succeeded
+  failed_when: "not (('already installed' in pecl_result.stdout) or ('install ok:' in pecl_result.stdout))"
+  with_items: "{{ php_pecl_extensions }}"
+
+- name: Enable Memcache in cli
+  shell: bash -c "echo extension=memcache.so > /etc/php/{{ php_version }}/cli/conf.d/memcache.ini"
+
+- name: Enable Memcache in fpm
+  shell: bash -c "echo extension=memcache.so > /etc/php/{{ php_version }}/fpm/conf.d/memcache.ini"
+
+- name: Install Memcached
+  apt:
+    name: memcached
     state: latest
 
 - name: Configure php.ini
@@ -17,13 +40,14 @@
     block: |
       date.time = Asia/Jakarta
       cgi-fix_pathinfo = 0
+      extension=memcache
     backup: yes
   notify: restart php-fpm
 
 - name: Create Nginx virtual host
   template:
     src: vhost.j2
-    dest: /etc/nginx/sites-enabled/vhost-{{ domain_name }}
+    dest: /etc/nginx/sites-enabled/default
   notify: restart nginx
 
 - name: Create web-root directory
@@ -36,17 +60,17 @@
     src: index.php.j2
     dest: /var/www/{{ domain_name }}/index.php
 
-- name: Upload index.html and info.php files
+- name: Upload mysql.php files
   template:
     src: mysql.php.j2
     dest: /var/www/{{ domain_name }}/mysql.php
 
-- name: Upload index.html and info.php files
+- name: Upload mssql.php files
   template:
     src: mssql.php.j2
     dest: /var/www/{{ domain_name }}/mssql.php
 
-- name: Upload index.html and info.php files
+- name: Upload memcached.php files
   template:
     src: memcached.php.j2
     dest: /var/www/{{ domain_name }}/memcached.php
