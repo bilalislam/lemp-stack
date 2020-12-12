@@ -1,0 +1,2 @@
+[lemp]
+mq1 ansible_host=10.10.1.101
