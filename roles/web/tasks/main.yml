@@ -31,7 +31,7 @@
   shell: curl -s https://packages.microsoft.com/keys/microsoft.asc | apt-key add - 
 
 - name: update repo list
-  shell: bash -c "curl -s https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list"
+  shell: bash -c "curl -s https://packages.microsoft.com/config/ubuntu/{{ os_version }}/prod.list > /etc/apt/sources.list.d/mssql-release.list"
 
 - name: update
   shell: apt-get update
@@ -39,25 +39,25 @@
 - name: install mssql packages
   shell: ACCEPT_EULA=Y ACCEPT_EULA=Y apt-get -y install msodbcsql17 mssql-tools
 
-- name: Enable php in cli
-  shell: bash -c "echo extension={{ item }}.so > /etc/php/{{ php_version }}/cli/conf.d/{{ item }}.ini"
-  with_items:
-   - memcache
-   - sqlsvr
-   - pdo_sqlsvr
+# - name: Enable php in cli
+#   shell: bash -c "echo extension={{ item }}.so > /etc/php/{{ php_version }}/cli/conf.d/{{ item }}.ini"
+#   with_items:
+#    - sqlsrv
+#    - pdo_sqlsrv
+#    - memcache
 
 - name: Enable php in fpm
   shell: bash -c "echo extension={{ item }}.so > /etc/php/{{ php_version }}/fpm/conf.d/{{ item }}.ini"
   with_items:
+   - sqlsrv
+   - pdo_sqlsrv
    - memcache
-   - sqlsvr
-   - pdo_sqlsvr
 
 - name: Install Memcached
   apt:
     name: memcached
     state: latest
-
+  
 - name: Configure php.ini
   blockinfile:
     dest: /etc/php/{{ php_version }}/fpm/php.ini
@@ -65,8 +65,6 @@
       date.time = Asia/Jakarta
       cgi-fix_pathinfo = 0
       extension=memcache
-      extension=sqlsvr
-      extension=pdo_sqlsvr
     backup: yes
   notify: restart php-fpm
 
