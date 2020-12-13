@@ -23,11 +23,35 @@
   failed_when: "not (('already installed' in pecl_result.stdout) or ('install ok:' in pecl_result.stdout))"
   with_items: "{{ php_pecl_extensions }}"
 
-- name: Enable Memcache in cli
-  shell: bash -c "echo extension=memcache.so > /etc/php/{{ php_version }}/cli/conf.d/memcache.ini"
+- name: install gnupg2
+  apt:
+    name: gnupg2
 
-- name: Enable Memcache in fpm
-  shell: bash -c "echo extension=memcache.so > /etc/php/{{ php_version }}/fpm/conf.d/memcache.ini"
+- name: install cert
+  shell: curl -s https://packages.microsoft.com/keys/microsoft.asc | apt-key add - 
+
+- name: update repo list
+  shell: bash -c "curl -s https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list"
+
+- name: update
+  shell: apt-get update
+
+- name: install mssql packages
+  shell: ACCEPT_EULA=Y ACCEPT_EULA=Y apt-get -y install msodbcsql17 mssql-tools
+
+- name: Enable php in cli
+  shell: bash -c "echo extension={{ item }}.so > /etc/php/{{ php_version }}/cli/conf.d/{{ item }}.ini"
+  with_items:
+   - memcache
+   - sqlsvr
+   - pdo_sqlsvr
+
+- name: Enable php in fpm
+  shell: bash -c "echo extension={{ item }}.so > /etc/php/{{ php_version }}/fpm/conf.d/{{ item }}.ini"
+  with_items:
+   - memcache
+   - sqlsvr
+   - pdo_sqlsvr
 
 - name: Install Memcached
   apt:
@@ -41,6 +65,8 @@
       date.time = Asia/Jakarta
       cgi-fix_pathinfo = 0
       extension=memcache
+      extension=sqlsvr
+      extension=pdo_sqlsvr
     backup: yes
   notify: restart php-fpm
 
@@ -55,22 +81,12 @@
     path: /var/www/{{ domain_name }}
     state: directory
 
-- name: Upload index.html and info.php files
+- name: Upload files
   template:
-    src: index.php.j2
-    dest: /var/www/{{ domain_name }}/index.php
-
-- name: Upload mysql.php files
-  template:
-    src: mysql.php.j2
-    dest: /var/www/{{ domain_name }}/mysql.php
-
-- name: Upload mssql.php files
-  template:
-    src: mssql.php.j2
-    dest: /var/www/{{ domain_name }}/mssql.php
-
-- name: Upload memcached.php files
-  template:
-    src: memcached.php.j2
-    dest: /var/www/{{ domain_name }}/memcached.php
+    src: "{{ item }}.j2"
+    dest: /var/www/{{ domain_name }}/{{ item }}.php
+  with_items:
+    - index
+    - mysql
+    - mssql
+    - memcached
